@@ -62,6 +62,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   private timer?: ReturnType<typeof setInterval>;
   private torrentHash?: string;
+  private connectAbortController?: AbortController;
+  private cancelRequested = false;
 
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -101,6 +103,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    this.cancelRequested = false;
+    this.connectAbortController = new AbortController();
     await this.stop();
     this.isAdding = true;
     this.status = 'Connecting to torrent peers…';
@@ -110,7 +114,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       const response = await fetch('/api/torrents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ magnet: this.magnet.trim() })
+        body: JSON.stringify({ magnet: this.magnet.trim() }),
+        signal: this.connectAbortController.signal
       });
       const request = await response.json();
       if (!response.ok) throw new Error(request.error || 'Could not add torrent.');
@@ -129,8 +134,30 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.startStats(torrent.infoHash);
       this.cdr.markForCheck();
     } catch (err: any) {
+      if (this.cancelRequested || err?.name === 'AbortError') {
+        this.status = 'Connection cancelled';
+        this.isAdding = false;
+        this.error = '';
+        this.cdr.markForCheck();
+        return;
+      }
       this.showError(err?.message ?? 'Could not connect to the torrent backend.');
     }
+  }
+
+  cancelConnect(): void {
+    this.cancelRequested = true;
+    this.connectAbortController?.abort();
+    this.clearStats();
+    this.torrentHash = undefined;
+    this.torrent = undefined;
+    this.selectedFile = undefined;
+    this.isCopying = false;
+    this.isAdding = false;
+    this.error = '';
+    this.stats = { peers: 0, progress: 0, downloaded: 0, total: 0, downloadSpeed: 0, uploadSpeed: 0 };
+    this.status = 'Connection cancelled';
+    this.cdr.markForCheck();
   }
 
   selectFile(file: TorrentFile): void {
@@ -192,13 +219,31 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   private async waitForMetadata(infoHash: string): Promise<Torrent> {
     for (let attempt = 0; attempt < 120; attempt++) {
-      const response = await fetch(`/api/torrents/${encodeURIComponent(infoHash)}`);
+      if (this.cancelRequested || this.connectAbortController?.signal.aborted) {
+        throw new Error('Connection cancelled.');
+      }
+
+      const response = await fetch(`/api/torrents/${encodeURIComponent(infoHash)}`, {
+        signal: this.connectAbortController?.signal
+      });
       const torrent = await response.json();
       if (!response.ok || torrent.status === 'error') {
         throw new Error(torrent.error || 'The backend could not load this torrent.');
       }
       if (torrent.status === 'ready') return torrent;
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, 1000);
+        const onAbort = () => {
+          clearTimeout(timeout);
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+        };
+        this.connectAbortController?.signal.addEventListener('abort', onAbort, { once: true });
+        setTimeout(() => {
+          this.connectAbortController?.signal.removeEventListener('abort', onAbort);
+          clearTimeout(timeout);
+          resolve(undefined);
+        }, 1000);
+      });
     }
     throw new Error('The backend could not find peers for this torrent after 120 seconds.');
   }

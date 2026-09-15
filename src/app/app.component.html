@@ -1,7 +1,7 @@
 <main class="page">
   <header class="topbar">
     <div class="brand-lockup">
-      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <img class="brand-mark" src="/images/logo.png" alt="LAN Torrent Streamer logo" />
       <div>
         <div class="eyebrow">LOCAL NETWORK / MEDIA RELAY</div>
         <h1>LAN Torrent Streamer</h1>
@@ -40,6 +40,9 @@
         spellcheck="false"
         [disabled]="isAdding">
       <button class="clear-button" *ngIf="magnet && !isAdding" (click)="clearMagnet()" aria-label="Clear magnet link" title="Clear magnet link">×</button>
+      <button class="secondary" *ngIf="isAdding" (click)="cancelConnect()" aria-label="Cancel torrent connection" title="Cancel torrent connection">
+        Cancel
+      </button>
       <button class="primary" (click)="start()" [disabled]="isAdding">
         <span class="button-icon" aria-hidden="true">{{ isAdding ? '↻' : '▶' }}</span>
         {{ isAdding ? 'Connecting…' : 'Start streaming' }}
