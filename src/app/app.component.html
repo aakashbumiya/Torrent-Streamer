@@ -28,14 +28,14 @@
       </div>
       <span class="relay-badge"><span class="badge-dot"></span>Node relay</span>
     </div>
-    <label class="label" for="magnet-input">Magnet link</label>
+    <label class="label" for="magnet-input">Magnet link or info hash</label>
     <div class="input-row">
       <input
         id="magnet-input"
         [value]="magnet"
         (input)="magnet = $any($event.target).value"
         (keydown)="onMagnetKeydown($event)"
-        placeholder="magnet:?xt=urn:btih:..."
+        placeholder="magnet:?xt=urn:btih:... or 40-char hash"
         autocomplete="off"
         spellcheck="false"
         [disabled]="isAdding">
@@ -48,7 +48,7 @@
         {{ isAdding ? 'Connecting…' : 'Start streaming' }}
       </button>
     </div>
-    <div class="input-hint"><span>Press Enter to connect</span><span>Magnet links only</span></div>
+    <div class="input-hint"><span>Press Enter to connect</span><span>Magnet links or hashes</span></div>
   </section>
 
   <section class="grid" *ngIf="torrent">

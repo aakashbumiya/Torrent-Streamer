@@ -69,6 +69,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!this.secureContext) this.status = 'LAN HTTP mode';
+
+    const params = new URLSearchParams(window.location.search);
+    const storedMagnet = params.get('magnet');
+    if (storedMagnet) {
+      this.magnet = decodeURIComponent(storedMagnet);
+      this.start();
+    }
   }
 
   onTorrentFileChange(event: Event): void {
@@ -83,6 +90,28 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   clearMagnet(): void {
     this.magnet = '';
     this.error = '';
+    this.updateUrlFromMagnet();
+  }
+
+  private normalizeTorrentInput(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (/^magnet:/i.test(trimmed)) return trimmed;
+
+    const hash = trimmed.replace(/^urn:btih:/i, '').replace(/\s+/g, '').toLowerCase();
+    if (/^[0-9a-f]{40}$/i.test(hash)) return `magnet:?xt=urn:btih:${hash}`;
+    return '';
+  }
+
+  private updateUrlFromMagnet(): void {
+    const url = new URL(window.location.href);
+    const normalized = this.normalizeTorrentInput(this.magnet);
+    if (normalized) {
+      url.searchParams.set('magnet', encodeURIComponent(normalized));
+    } else {
+      url.searchParams.delete('magnet');
+    }
+    window.history.replaceState({}, '', url);
   }
 
   async copyHash(): Promise<void> {
@@ -98,11 +127,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   async start(): Promise<void> {
     this.error = '';
-    if (!this.magnet.trim()) {
-      this.showError('Paste a magnet link. Backend mode currently accepts magnet links.');
+    const normalizedMagnet = this.normalizeTorrentInput(this.magnet);
+    if (!normalizedMagnet) {
+      this.showError('Paste a magnet link or a 40-character info hash.');
       return;
     }
 
+    this.magnet = normalizedMagnet;
     this.cancelRequested = false;
     this.connectAbortController = new AbortController();
     await this.stop();
@@ -114,13 +145,14 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       const response = await fetch('/api/torrents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ magnet: this.magnet.trim() }),
+        body: JSON.stringify({ magnet: normalizedMagnet }),
         signal: this.connectAbortController.signal
       });
       const request = await response.json();
       if (!response.ok) throw new Error(request.error || 'Could not add torrent.');
 
       this.torrentHash = request.infoHash;
+      this.updateUrlFromMagnet();
       this.status = 'Downloading torrent metadata…';
       const torrent = await this.waitForMetadata(request.infoHash);
       this.torrent = torrent;
@@ -195,6 +227,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.isCopying = false;
     this.stats = { peers: 0, progress: 0, downloaded: 0, total: 0, downloadSpeed: 0, uploadSpeed: 0 };
     this.status = 'Ready';
+    this.updateUrlFromMagnet();
     this.cdr.markForCheck();
   }
 

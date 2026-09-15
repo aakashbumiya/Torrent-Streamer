@@ -206,7 +206,7 @@ button:disabled {
 
 button.clear-button {
   position: absolute;
-  right: 194x;
+  right: 184px;
   top: 50%;
   transform: translateY(-50%);
   min-height: 28px;
@@ -460,7 +460,7 @@ video {
   overflow: auto;
 }
 
-.file {
+button.file {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
@@ -471,13 +471,19 @@ video {
   color: #cfcfd6;
   padding: 10px;
   font-size: 11px;
+  transform: none;
+}
+
+button.file:hover,
+button.file:focus-visible {
+  transform: none;
+  background: #202027;
 }
 
 .file.active {
   border-color: #7b2e22;
   background: #231512;
 }
-.file:hover { background: #202027; }
 
 .file-icon {
   color: #f04f35;

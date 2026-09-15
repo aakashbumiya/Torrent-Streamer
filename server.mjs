@@ -34,6 +34,16 @@ function getBody(request) {
   });
 }
 
+function normalizeMagnetInput(value) {
+  const input = String(value || '').trim();
+  if (!input) return '';
+  if (/^magnet:/i.test(input)) return input;
+
+  const hash = input.replace(/^urn:btih:/i, '').replace(/\s+/g, '').toLowerCase();
+  if (/^[0-9a-f]{40}$/i.test(hash)) return `magnet:?xt=urn:btih:${hash}`;
+  return '';
+}
+
 function hashFromMagnet(magnet) {
   const match = magnet.match(/urn:btih:([^&]+)/i);
   return match ? decodeURIComponent(match[1]).toLowerCase() : '';
@@ -72,7 +82,10 @@ function torrentInfo(entry) {
 }
 
 function addTorrent(magnet) {
-  const requestedHash = hashFromMagnet(magnet);
+  const normalizedMagnet = normalizeMagnetInput(magnet);
+  if (!normalizedMagnet) throw new Error('The value is not a valid magnet link or 40-character info hash.');
+
+  const requestedHash = hashFromMagnet(normalizedMagnet);
   if (!requestedHash) throw new Error('The magnet link does not contain a valid info hash.');
 
   const existing = torrents.get(requestedHash);
@@ -198,8 +211,8 @@ async function handleApi(request, response, pathname) {
   if (request.method === 'POST' && pathname === '/api/torrents') {
     try {
       const body = JSON.parse(await getBody(request));
-      const magnet = String(body.magnet || '').trim();
-      if (!magnet) return sendJson(response, 400, { error: 'A magnet link is required.' });
+      const magnet = normalizeMagnetInput(body.magnet || body.infoHash || body.torrentId || '');
+      if (!magnet) return sendJson(response, 400, { error: 'A magnet link or 40-character info hash is required.' });
       const entry = addTorrent(magnet);
       return sendJson(response, 202, torrentInfo(entry));
     } catch (error) {
