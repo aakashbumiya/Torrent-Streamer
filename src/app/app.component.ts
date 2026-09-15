@@ -49,6 +49,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   error = '';
   status = 'Ready';
   isAdding = false;
+  isCopying = false;
   secureContext = window.isSecureContext;
   stats = {
     peers: 0,
@@ -71,6 +72,26 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   onTorrentFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.selectedTorrentFile = input.files?.[0];
+  }
+
+  onMagnetKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !this.isAdding) this.start();
+  }
+
+  clearMagnet(): void {
+    this.magnet = '';
+    this.error = '';
+  }
+
+  async copyHash(): Promise<void> {
+    if (!this.torrent?.infoHash || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(this.torrent.infoHash);
+    this.isCopying = true;
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.isCopying = false;
+      this.cdr.markForCheck();
+    }, 1600);
   }
 
   async start(): Promise<void> {
@@ -144,6 +165,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.torrentHash = undefined;
     this.torrent = undefined;
     this.selectedFile = undefined;
+    this.isCopying = false;
     this.stats = { peers: 0, progress: 0, downloaded: 0, total: 0, downloadSpeed: 0, uploadSpeed: 0 };
     this.status = 'Ready';
     this.cdr.markForCheck();

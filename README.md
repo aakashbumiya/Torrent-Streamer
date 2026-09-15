@@ -162,7 +162,7 @@ npm run build
 The generated static site is under:
 
 ```text
-dist/lan-torrent-streamer
+dist/lan-torrent-streamer/browser
 ```
 
 You can serve that folder from Nginx, Caddy, Apache, or another static HTTP/HTTPS server.

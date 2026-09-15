@@ -1,12 +1,15 @@
 <main class="page">
   <header class="topbar">
-    <div>
-      <div class="eyebrow">LOCAL NETWORK</div>
-      <h1>LAN Torrent Streamer</h1>
-      <p>Stream compatible torrent video files directly in your browser.</p>
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div>
+        <div class="eyebrow">LOCAL NETWORK / MEDIA RELAY</div>
+        <h1>LAN Torrent Streamer</h1>
+        <p>Turn a magnet link into a private, local playback session.</p>
+      </div>
     </div>
-    <div class="status-pill" [class.ready]="!error">
-      <span class="dot"></span>{{ status }}
+    <div class="status-pill" [class.ready]="!error" [class.error-state]="!!error" aria-live="polite">
+      <span class="dot"></span><span>{{ status }}</span>
     </div>
   </header>
 
@@ -17,26 +20,32 @@
     serve this app over local HTTPS. See the README.
   </section>
 
-  <section class="card setup">
-    <label class="label">Magnet link</label>
+  <section class="card setup" [class.is-loading]="isAdding">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">01 / CONNECT</div>
+        <h2>Bring a stream to life</h2>
+      </div>
+      <span class="relay-badge"><span class="badge-dot"></span>Node relay</span>
+    </div>
+    <label class="label" for="magnet-input">Magnet link</label>
     <div class="input-row">
       <input
+        id="magnet-input"
         [value]="magnet"
         (input)="magnet = $any($event.target).value"
+        (keydown)="onMagnetKeydown($event)"
         placeholder="magnet:?xt=urn:btih:..."
-        autocomplete="off">
+        autocomplete="off"
+        spellcheck="false"
+        [disabled]="isAdding">
+      <button class="clear-button" *ngIf="magnet && !isAdding" (click)="clearMagnet()" aria-label="Clear magnet link" title="Clear magnet link">×</button>
       <button class="primary" (click)="start()" [disabled]="isAdding">
+        <span class="button-icon" aria-hidden="true">{{ isAdding ? '↻' : '▶' }}</span>
         {{ isAdding ? 'Connecting…' : 'Start streaming' }}
       </button>
     </div>
-
-    <div class="divider"><span>MAGNET LINKS ONLY</span></div>
-
-    <label class="upload">
-      <input type="file" accept=".torrent,application/x-bittorrent" (change)="onTorrentFileChange($event)">
-      <span>.torrent upload coming soon</span>
-      <small>Use a magnet link with the Node relay</small>
-    </label>
+    <div class="input-hint"><span>Press Enter to connect</span><span>Magnet links only</span></div>
   </section>
 
   <section class="grid" *ngIf="torrent">
@@ -50,16 +59,22 @@
 
       <div class="player-meta">
         <div>
-          <div class="eyebrow">NOW STREAMING</div>
+          <div class="eyebrow"><span class="live-dot"></span>NOW STREAMING</div>
           <h2>{{ selectedFile?.name || torrent.name }}</h2>
         </div>
-        <button class="secondary" (click)="stop()">Stop</button>
+        <button class="secondary" (click)="stop()"><span aria-hidden="true">■</span> Stop</button>
       </div>
     </div>
 
     <aside class="card sidebar">
-      <div class="torrent-title">{{ torrent.name }}</div>
-      <div class="hash">{{ torrent.infoHash }}</div>
+      <div class="sidebar-heading">
+        <div>
+          <div class="eyebrow">TORRENT SESSION</div>
+          <div class="torrent-title">{{ torrent.name }}</div>
+        </div>
+        <button class="icon-button" (click)="copyHash()" [attr.aria-label]="isCopying ? 'Hash copied' : 'Copy info hash'" [title]="isCopying ? 'Copied' : 'Copy info hash'">{{ isCopying ? '✓' : '⧉' }}</button>
+      </div>
+      <div class="hash" title="Info hash">{{ torrent.infoHash }}</div>
 
       <div class="stats">
         <div><span>Peers</span><strong>{{ stats.peers }}</strong></div>
@@ -75,7 +90,7 @@
         {{ formatBytes(stats.downloaded) }} / {{ formatBytes(stats.total) }}
       </div>
 
-      <h3>Files</h3>
+      <div class="files-heading"><h3>Files</h3><span>{{ torrent.files.length }}</span></div>
       <div class="files">
         <button
           *ngFor="let file of torrent.files"
@@ -90,7 +105,13 @@
     </aside>
   </section>
 
-  <div class="error" *ngIf="error">{{ error }}</div>
+  <section class="empty-state" *ngIf="!torrent && !isAdding">
+    <div class="empty-icon" aria-hidden="true">＋</div>
+    <h2>Your player is waiting</h2>
+    <p>Paste a magnet link above to discover files and start watching on your network.</p>
+  </section>
+
+  <div class="error" *ngIf="error" role="alert"><strong>Something went wrong</strong><span>{{ error }}</span></div>
 
   <footer>
     Browser-only WebTorrent. Use only with content you are authorized to access.

@@ -228,7 +228,7 @@ async function handleApi(request, response, pathname) {
 }
 
 function serveStatic(request, response, pathname) {
-  const dist = join(root, 'dist', 'lan-torrent-streamer');
+  const dist = join(root, 'dist', 'lan-torrent-streamer', 'browser');
   const requested = pathname === '/' ? 'index.html' : pathname.slice(1);
   const filePath = normalize(join(dist, requested));
   const safePath = filePath.startsWith(dist) ? filePath : join(dist, 'index.html');
