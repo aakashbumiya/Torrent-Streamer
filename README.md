@@ -91,6 +91,39 @@ Then another device on the same Wi-Fi can try:
 http://SERVER_IP:4200
 ```
 
+The full Node process also advertises a local discovery name:
+
+```text
+http://torrent-streamer.local:3000
+```
+
+The app displays the detected LAN addresses and a QR code for joining from a
+phone or TV. mDNS support depends on the network and operating system; the IP
+address remains the fallback.
+
+### Optional LAN protection
+
+Set a PIN when starting the backend to require it for torrent and streaming
+requests:
+
+```bash
+LAN_PIN=2468 npm run start:full
+```
+
+The PIN is stored only in the current browser session. By default, API traffic
+is also limited to loopback and private LAN addresses. To disable that check
+for a trusted development setup:
+
+```bash
+LAN_ONLY=false npm run start:full
+```
+
+You can change the mDNS hostname with `LAN_HOSTNAME`:
+
+```bash
+LAN_HOSTNAME=movie-room.local npm run start:full
+```
+
 ### Important: HTTPS for reliable remote-device streaming
 
 The WebTorrent browser streaming endpoint uses a service worker. Service workers require a secure context. `http://localhost` is treated specially by browsers, but `http://192.168.x.x` is normally not a secure context.

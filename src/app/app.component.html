@@ -13,17 +13,26 @@
     </div>
   </header>
 
-  <section class="notice" *ngIf="!secureContext">
-    <strong>LAN HTTP detected.</strong>
-    The browser may block the service-worker streaming endpoint on
-    <code>http://192.168.x.x</code>. For reliable streaming from another device,
-    serve this app over local HTTPS. See the README.
+  <section class="network-card" *ngIf="network">
+    <div class="network-copy">
+      <div class="eyebrow">JOIN THIS LAN</div>
+      <h2>Open on another device</h2>
+      <p>Scan the code or visit <strong>{{ network.hostname }}:{{ network.port }}</strong> from the same network.</p>
+      <label class="pin-field" *ngIf="network.pinRequired" for="lan-pin">
+        <span>LAN PIN</span>
+        <input id="lan-pin" type="password" [value]="lanPin" (input)="onPinInput($any($event.target).value)" autocomplete="off" placeholder="Enter PIN">
+      </label>
+      <div class="network-hosts">
+        <span *ngFor="let host of network.hosts">{{ host }}</span>
+      </div>
+    </div>
+    <img class="network-qr" *ngIf="qrCode" [src]="qrCode" alt="QR code for this LAN streamer">
   </section>
 
   <section class="card setup" [class.is-loading]="isAdding">
     <div class="section-heading">
       <div>
-        <div class="eyebrow">01 / CONNECT</div>
+        <div class="eyebrow">CONNECT</div>
         <h2>Bring a stream to life</h2>
       </div>
       <span class="relay-badge"><span class="badge-dot"></span>Node relay</span>

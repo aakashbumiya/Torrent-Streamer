@@ -78,6 +78,72 @@ p {
 }
 .status-pill.error-state .dot { background: #ef4444; }
 
+.network-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: #171b20;
+  border: 1px solid #30404a;
+  border-radius: 18px;
+}
+
+.network-copy { min-width: 0; }
+.network-copy h2 { margin: 6px 0 5px; font-size: 20px; }
+.network-copy p { font-size: 13px; }
+.network-copy strong { color: #f4f4f6; }
+
+.network-qr {
+  width: 116px;
+  height: 116px;
+  padding: 7px;
+  flex: 0 0 auto;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.network-hosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.network-hosts span {
+  padding: 5px 8px;
+  color: #b7d4df;
+  background: #202b31;
+  border: 1px solid #38505b;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.pin-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  color: #b7d4df;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.pin-field input {
+  width: 130px;
+  padding: 8px 10px;
+  color: #f4f4f6;
+  background: #0b0d0f;
+  border: 1px solid #38505b;
+  border-radius: 7px;
+  outline: none;
+}
+
+.pin-field input:focus { border-color: #f04f35; }
+
 .card {
   background: #111116;
   border: 1px solid #292932;
@@ -569,6 +635,17 @@ code {
     margin-bottom: 16px;
   }
 
+  .network-card {
+    align-items: flex-start;
+    padding: 15px;
+    border-radius: 14px;
+  }
+
+  .network-qr {
+    width: 82px;
+    height: 82px;
+  }
+
   h1 {
     max-width: 11ch;
     font-size: 36px;
@@ -607,7 +684,18 @@ code {
     padding-inline: 12px;
   }
 
-  .clear-button { right: 8px; top: 7px; }
+  button.clear-button {
+    top: 23px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    display: grid;
+    place-items: center;
+    font-size: 23px;
+    line-height: 1;
+  }
   .input-row input { padding-right: 42px; }
 
   .section-heading { margin-bottom: 18px; }

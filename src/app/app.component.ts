@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import QRCode from 'qrcode';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -31,6 +32,14 @@ type Torrent = {
   error?: string;
 };
 
+type NetworkInfo = {
+  hosts: string[];
+  urls: string[];
+  hostname: string;
+  port: number;
+  pinRequired: boolean;
+};
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -51,6 +60,9 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   isAdding = false;
   isCopying = false;
   secureContext = window.isSecureContext;
+  network?: NetworkInfo;
+  qrCode = '';
+  lanPin = sessionStorage.getItem('lan-pin') || '';
   stats = {
     peers: 0,
     progress: 0,
@@ -62,6 +74,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   private timer?: ReturnType<typeof setInterval>;
   private torrentHash?: string;
+  private torrentSessionId?: string;
   private connectAbortController?: AbortController;
   private cancelRequested = false;
 
@@ -69,6 +82,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!this.secureContext) this.status = 'LAN HTTP mode';
+    void this.loadNetworkInfo();
 
     const params = new URLSearchParams(window.location.search);
     const storedMagnet = params.get('magnet');
@@ -76,6 +90,34 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.magnet = decodeURIComponent(storedMagnet);
       this.start();
     }
+  }
+
+  async loadNetworkInfo(): Promise<void> {
+    const response = await fetch('/api/network').catch(() => undefined);
+    if (!response?.ok) return;
+    this.network = await response.json();
+    this.qrCode = await QRCode.toDataURL(this.buildShareUrl(), { width: 220, margin: 1 });
+    this.cdr.markForCheck();
+  }
+
+  private buildShareUrl(): string {
+    const url = new URL(window.location.href);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      const lanHost = this.network?.hosts.find(host => /^\d+\.\d+\.\d+\.\d+$/.test(host)) || this.network?.hostname;
+      if (lanHost) url.hostname = lanHost;
+    }
+    return url.toString();
+  }
+
+  onPinInput(value: string): void {
+    this.lanPin = value;
+    sessionStorage.setItem('lan-pin', value);
+  }
+
+  private apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+    if (this.lanPin) headers.set('X-LAN-PIN', this.lanPin);
+    return fetch(input, { ...init, headers });
   }
 
   onTorrentFileChange(event: Event): void {
@@ -142,7 +184,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
 
     try {
-      const response = await fetch('/api/torrents', {
+      const response = await this.apiFetch('/api/torrents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ magnet: normalizedMagnet }),
@@ -152,6 +194,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       if (!response.ok) throw new Error(request.error || 'Could not add torrent.');
 
       this.torrentHash = request.infoHash;
+      this.torrentSessionId = request.sessionId;
       this.updateUrlFromMagnet();
       this.status = 'Downloading torrent metadata…';
       const torrent = await this.waitForMetadata(request.infoHash);
@@ -180,8 +223,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   cancelConnect(): void {
     this.cancelRequested = true;
     this.connectAbortController?.abort();
+    void this.releaseTorrentSession();
     this.clearStats();
     this.torrentHash = undefined;
+    this.torrentSessionId = undefined;
     this.torrent = undefined;
     this.selectedFile = undefined;
     this.isCopying = false;
@@ -218,10 +263,9 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   async stop(): Promise<void> {
     this.clearStats();
-    if (this.torrentHash) {
-      await fetch(`/api/torrents/${encodeURIComponent(this.torrentHash)}`, { method: 'DELETE' }).catch(() => {});
-    }
+    await this.releaseTorrentSession();
     this.torrentHash = undefined;
+    this.torrentSessionId = undefined;
     this.torrent = undefined;
     this.selectedFile = undefined;
     this.isCopying = false;
@@ -256,7 +300,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         throw new Error('Connection cancelled.');
       }
 
-      const response = await fetch(`/api/torrents/${encodeURIComponent(infoHash)}`, {
+      const response = await this.apiFetch(`/api/torrents/${encodeURIComponent(infoHash)}`, {
         signal: this.connectAbortController?.signal
       });
       const torrent = await response.json();
@@ -284,7 +328,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private startStats(infoHash: string): void {
     this.clearStats();
     this.timer = setInterval(async () => {
-      const response = await fetch(`/api/torrents/${encodeURIComponent(infoHash)}`).catch(() => undefined);
+      const response = await this.apiFetch(`/api/torrents/${encodeURIComponent(infoHash)}`).catch(() => undefined);
       if (!response?.ok) return;
       const torrent = await response.json();
       this.stats = {
@@ -302,6 +346,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private clearStats(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+  }
+
+  private async releaseTorrentSession(): Promise<void> {
+    if (!this.torrentHash || !this.torrentSessionId) return;
+    const hash = this.torrentHash;
+    const sessionId = encodeURIComponent(this.torrentSessionId);
+    this.torrentHash = undefined;
+    this.torrentSessionId = undefined;
+    await this.apiFetch(`/api/torrents/${encodeURIComponent(hash)}?sessionId=${sessionId}`, { method: 'DELETE' }).catch(() => {});
   }
 
   private showError(message: string): void {
