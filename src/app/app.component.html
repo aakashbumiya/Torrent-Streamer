@@ -1,0 +1,98 @@
+<main class="page">
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">LOCAL NETWORK</div>
+      <h1>LAN Torrent Streamer</h1>
+      <p>Stream compatible torrent video files directly in your browser.</p>
+    </div>
+    <div class="status-pill" [class.ready]="!error">
+      <span class="dot"></span>{{ status }}
+    </div>
+  </header>
+
+  <section class="notice" *ngIf="!secureContext">
+    <strong>LAN HTTP detected.</strong>
+    The browser may block the service-worker streaming endpoint on
+    <code>http://192.168.x.x</code>. For reliable streaming from another device,
+    serve this app over local HTTPS. See the README.
+  </section>
+
+  <section class="card setup">
+    <label class="label">Magnet link</label>
+    <div class="input-row">
+      <input
+        [value]="magnet"
+        (input)="magnet = $any($event.target).value"
+        placeholder="magnet:?xt=urn:btih:..."
+        autocomplete="off">
+      <button class="primary" (click)="start()" [disabled]="isAdding">
+        {{ isAdding ? 'Connecting…' : 'Start streaming' }}
+      </button>
+    </div>
+
+    <div class="divider"><span>MAGNET LINKS ONLY</span></div>
+
+    <label class="upload">
+      <input type="file" accept=".torrent,application/x-bittorrent" (change)="onTorrentFileChange($event)">
+      <span>.torrent upload coming soon</span>
+      <small>Use a magnet link with the Node relay</small>
+    </label>
+  </section>
+
+  <section class="grid" *ngIf="torrent">
+    <div class="card player-card">
+      <div class="video-shell">
+        <video #video controls playsinline preload="metadata"></video>
+        <div class="video-placeholder" *ngIf="!selectedFile">
+          Select a video file to start
+        </div>
+      </div>
+
+      <div class="player-meta">
+        <div>
+          <div class="eyebrow">NOW STREAMING</div>
+          <h2>{{ selectedFile?.name || torrent.name }}</h2>
+        </div>
+        <button class="secondary" (click)="stop()">Stop</button>
+      </div>
+    </div>
+
+    <aside class="card sidebar">
+      <div class="torrent-title">{{ torrent.name }}</div>
+      <div class="hash">{{ torrent.infoHash }}</div>
+
+      <div class="stats">
+        <div><span>Peers</span><strong>{{ stats.peers }}</strong></div>
+        <div><span>Progress</span><strong>{{ formatPercent(stats.progress) }}</strong></div>
+        <div><span>Down</span><strong>{{ formatSpeed(stats.downloadSpeed) }}</strong></div>
+        <div><span>Up</span><strong>{{ formatSpeed(stats.uploadSpeed) }}</strong></div>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="stats.progress * 100"></div>
+      </div>
+      <div class="progress-caption">
+        {{ formatBytes(stats.downloaded) }} / {{ formatBytes(stats.total) }}
+      </div>
+
+      <h3>Files</h3>
+      <div class="files">
+        <button
+          *ngFor="let file of torrent.files"
+          class="file"
+          [class.active]="file === selectedFile"
+          (click)="selectFile(file)">
+          <span class="file-icon">{{ isVideo(file) ? '▶' : '•' }}</span>
+          <span class="file-name">{{ file.name }}</span>
+          <span class="file-size">{{ formatBytes(file.length) }}</span>
+        </button>
+      </div>
+    </aside>
+  </section>
+
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <footer>
+    Browser-only WebTorrent. Use only with content you are authorized to access.
+  </footer>
+</main>
