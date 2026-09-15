@@ -130,7 +130,14 @@ function streamFile(request, response, entry, index) {
     'Access-Control-Allow-Origin': '*'
   });
 
-  file.createReadStream({ start, end }).pipe(response);
+  const stream = file.createReadStream({ start, end });
+  stream.on('error', error => {
+    if (error.code !== 'PREMATURE_CLOSE' && !response.destroyed) response.destroy(error);
+  });
+  response.on('close', () => {
+    if (!stream.destroyed) stream.destroy();
+  });
+  stream.pipe(response);
 }
 
 function transcodeFile(response, entry, index) {
@@ -157,8 +164,18 @@ function transcodeFile(response, entry, index) {
     'pipe:1'
   ]);
 
+  const input = file.createReadStream();
+  input.on('error', error => {
+    if (error.code !== 'PREMATURE_CLOSE' && !response.destroyed) response.destroy(error);
+  });
+  ffmpeg.stdout.on('error', error => {
+    if (!response.destroyed) response.destroy(error);
+  });
+  response.on('close', () => {
+    if (!input.destroyed) input.destroy();
+  });
   ffmpeg.stdout.pipe(response);
-  file.createReadStream().pipe(ffmpeg.stdin);
+  input.pipe(ffmpeg.stdin);
   ffmpeg.on('error', error => {
     if (!response.headersSent) sendJson(response, 500, { error: error.message });
     else response.destroy(error);
